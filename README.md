@@ -20,6 +20,7 @@ c := retrigo.Client{
   HTTPClient: &http.Client{
     Timeout: 10 * time.Second,
   },
+  Logger:        retrigo.DefaulLogger,
   RetryWaitMin:  20 * time.Millisecond,
   RetryWaitMax:  10 * time.Second,
   RetryMax:      5,
