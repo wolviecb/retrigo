@@ -35,6 +35,7 @@ type Client struct {
 	RetryMax      int
 	CheckForRetry CheckForRetry
 	Backoff       Backoff
+	Logger        Logger
 }
 
 // Backoff type the function for calculating the wait time between failed requests
@@ -45,6 +46,9 @@ type Request struct {
 	body io.ReadSeeker
 	*http.Request
 }
+
+// Logger type is the function for logging error/debug messages
+type Logger func(mtype, msg string, err error)
 
 // DefaultBackoff is the default function for calculating the Backoff period
 // it's a simple exponential of 2**attempt * RetryWaitMin limited by RetryWaitMax
@@ -57,6 +61,12 @@ func DefaultBackoff(min, max time.Duration, attempt int, r *http.Response) time.
 	return s
 }
 
+
+// DefaultLogger is a simple default logger
+func DefaultLogger(mtype, msg string, err error) {
+	log.Printf(mtype + " " + msg + err.Error())
+}
+
 // NewClient return a default new http.client
 func NewClient() *Client {
 	return &Client{
@@ -66,6 +76,7 @@ func NewClient() *Client {
 		RetryMax:      DefaultRetryMax,
 		CheckForRetry: DefaultRetryPolicy,
 		Backoff:       DefaultBackoff,
+		Logger:        DefaultLogger,
 	}
 }
 
@@ -99,7 +110,9 @@ func (c *Client) drainBody(body io.ReadCloser) {
 	defer body.Close()
 	_, err := io.Copy(ioutil.Discard, io.LimitReader(body, respReadLimit))
 	if err != nil {
-		log.Printf("[ERR] error reading response body: %v", err)
+		mtype := "ERROR"
+		msg := "error reading response body"
+		c.Logger(mtype, msg, err)
 	}
 }
 
@@ -136,7 +149,9 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 
 		r, err := c.HTTPClient.Do(req.Request)
 		if err != nil {
-			log.Printf("[ERR]: %s %s request failed: %v", req.Method, req.URL, err)
+			mtype := "ERROR"
+			msg := fmt.Sprintf("%s %s request failed: ", req.Method, req.URL)
+			c.Logger(mtype, msg, err)
 		}
 		if r != nil {
 			code = r.StatusCode
@@ -163,7 +178,9 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 		if code > 0 {
 			desc = fmt.Sprintf("%s status: %d", desc, code)
 		}
-		log.Printf("[DEBUG] %s: retrying in %s (%d left)", desc, wait, remain)
+		mtype := "DEBUG"
+		msg := fmt.Sprintf("%s: retrying in %s (%d left): ", desc, wait, remain)
+		c.Logger(mtype, msg, err)
 		time.Sleep(wait)
 	}
 
