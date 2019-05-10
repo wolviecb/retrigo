@@ -38,7 +38,7 @@ type Client struct {
 	Logger        Logger
 }
 
-// Backoff type the function for calculating the wait time between failed requests
+// Backoff type is the function for calculating the wait time between failed requests
 type Backoff func(min, max time.Duration, attempt int, r *http.Response) time.Duration
 
 // Request is the type for storing the http.Request
