@@ -61,6 +61,17 @@ func DefaultBackoff(min, max time.Duration, attempt int, r *http.Response) time.
 	return s
 }
 
+// DefaultRetryPolicy is the default policy for retrying http requests
+func DefaultRetryPolicy(r *http.Response, err error) (bool, error) {
+	if err != nil {
+		return true, err
+	}
+	if r.StatusCode == http.StatusInternalServerError {
+		return true, nil
+	}
+
+	return false, nil
+}
 
 // DefaultLogger is a simple default logger
 func DefaultLogger(mtype, msg string, err error) {
@@ -78,18 +89,6 @@ func NewClient() *Client {
 		Backoff:       DefaultBackoff,
 		Logger:        DefaultLogger,
 	}
-}
-
-// DefaultRetryPolicy is the default policy for retrying http requests
-func DefaultRetryPolicy(r *http.Response, err error) (bool, error) {
-	if err != nil {
-		return true, err
-	}
-	if r.StatusCode == http.StatusInternalServerError {
-		return true, nil
-	}
-
-	return false, nil
 }
 
 // NewRequest create a wrapped request
