@@ -48,7 +48,7 @@ type Request struct {
 }
 
 // Logger type is the function for logging error/debug messages
-type Logger func(mtype, msg string, err error)
+type Logger func(req *Request, mtype, msg string, err error)
 
 // DefaultBackoff is the default function for calculating the Backoff period
 // it's a simple exponential of 2**attempt * RetryWaitMin limited by RetryWaitMax
@@ -74,7 +74,7 @@ func DefaultRetryPolicy(r *http.Response, err error) (bool, error) {
 }
 
 // DefaultLogger is a simple default logger
-func DefaultLogger(mtype, msg string, err error) {
+func DefaultLogger(req *Request, mtype, msg string, err error) {
 	log.Printf(mtype + " " + msg + err.Error())
 }
 
@@ -111,7 +111,7 @@ func (c *Client) drainBody(body io.ReadCloser) {
 	if err != nil {
 		mtype := "ERROR"
 		msg := "error reading response body"
-		c.Logger(mtype, msg, err)
+		c.Logger(nil, mtype, msg, err)
 	}
 }
 
@@ -150,7 +150,7 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 		if err != nil {
 			mtype := "ERROR"
 			msg := fmt.Sprintf("%s %s request failed: ", req.Method, req.URL)
-			c.Logger(mtype, msg, err)
+			c.Logger(req, mtype, msg, err)
 		}
 		if r != nil {
 			code = r.StatusCode
@@ -179,7 +179,7 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 		}
 		mtype := "DEBUG"
 		msg := fmt.Sprintf("%s: retrying in %s (%d left): ", desc, wait, remain)
-		c.Logger(mtype, msg, err)
+		c.Logger(req, mtype, msg, err)
 		time.Sleep(wait)
 	}
 
