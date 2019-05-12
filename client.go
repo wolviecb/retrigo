@@ -47,6 +47,10 @@ type Request struct {
 	*http.Request
 }
 
+type LenReader interface {
+	Len() int
+}
+
 // Logger type is the function for logging error/debug messages
 type Logger func(req *Request, mtype, msg string, err error)
 
@@ -93,6 +97,12 @@ func NewClient() *Client {
 
 // NewRequest create a wrapped request
 func NewRequest(method, url string, body io.ReadSeeker) (*Request, error) {
+	var contentLength int64
+	raw := body
+
+	if lr, ok := raw.(LenReader); ok {
+		contentLength = int64(lr.Len())
+	}
 	var rBody io.ReadCloser
 	if body != nil {
 		rBody = ioutil.NopCloser(body)
@@ -101,6 +111,7 @@ func NewRequest(method, url string, body io.ReadSeeker) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
+	httpReq.ContentLength = contentLength
 	return &Request{body, httpReq}, nil
 }
 
