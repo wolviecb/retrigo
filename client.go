@@ -47,7 +47,7 @@ type Request struct {
 	*http.Request
 }
 
-type LenReader interface {
+type lenReader interface {
 	Len() int
 }
 
@@ -100,7 +100,7 @@ func NewRequest(method, url string, body io.ReadSeeker) (*Request, error) {
 	var contentLength int64
 	raw := body
 
-	if lr, ok := raw.(LenReader); ok {
+	if lr, ok := raw.(lenReader); ok {
 		contentLength = int64(lr.Len())
 	}
 	var rBody io.ReadCloser
