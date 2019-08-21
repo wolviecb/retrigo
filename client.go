@@ -136,13 +136,51 @@ func (c *Client) Get(url string) (*http.Response, error) {
 	return c.Do(req)
 }
 
+// Head is for simple HEAD requests
+func (c *Client) Head(url string) (*http.Response, error) {
+	req, err := NewRequest("HEAD", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return c.Do(req)
+}
+
 // Post is for simple POST requests
 func (c *Client) Post(url, bodyType string, body io.ReadSeeker) (*http.Response, error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Content-Type", bodyType)
+	return c.Do(req)
+}
 
+// Put is for simple PUT requests
+func (c *Client) Put(url, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	req, err := NewRequest("PUT", url, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", bodyType)
+	return c.Do(req)
+}
+
+// Patch is for simple DELETE requests
+func (c *Client) Patch(url string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	req, err := NewRequest("PATCH", url, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", bodyType)
+	return c.Do(req)
+}
+
+// Delete is for simple DELETE requests
+func (c *Client) Delete(url string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	req, err := NewRequest("DELETE", url, body)
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Set("Content-Type", bodyType)
 	return c.Do(req)
 }
