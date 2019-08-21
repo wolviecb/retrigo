@@ -28,3 +28,5 @@ c := retrigo.Client{
   Backoff:       retrigo.DefaultBackoff,
 }
 ```
+
+The url parameter (`c.Post("URL")`) can be one URL or a space separated list of URLs that the library will randomly choose as target (e. g. `"URL1 URL2 URL3"`)
