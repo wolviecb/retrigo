@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
@@ -185,15 +186,13 @@ func (c *Client) Delete(url string, bodyType string, body io.ReadSeeker) (*http.
 	return c.Do(req)
 }
 
-// GetRandom is a simple POST using a randomly chosen server from url []string
+// GetRandom is a simple GET using a randomly chosen server from url []string
 func (c *Client) GetRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	rand.Seed(time.Now().Unix())
-	dest := url[rand.Intn(len(url))]
-	req, err := NewRequest("GET", dest, nil)
+	req, err := NewRequest("GET", "", nil)
 	if err != nil {
 		return nil, err
 	}
-	return c.Do(req)
+	return c.DoR(req, url)
 }
 
 // HeadRandom is a simple HEAD using a randomly chosen server from url []string
@@ -266,6 +265,60 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 			}
 		}
 
+		r, err := c.HTTPClient.Do(req.Request)
+		if err != nil {
+			mtype := "ERROR"
+			msg := fmt.Sprintf("%s %s request failed: ", req.Method, req.URL)
+			c.Logger(req, mtype, msg, err)
+		}
+		if r != nil {
+			code = r.StatusCode
+		}
+		checkOK, checkErr := c.CheckForRetry(r, err)
+
+		if !checkOK {
+			if checkErr != nil {
+				err = checkErr
+			}
+			return r, err
+		}
+
+		if err == nil {
+			c.drainBody(r.Body)
+		}
+
+		remain := c.RetryMax - i
+		if remain == 0 {
+			break
+		}
+		wait := c.Backoff(c.RetryWaitMin, c.RetryWaitMax, i, r)
+		desc := fmt.Sprintf("%s %s", req.Method, req.URL)
+		if code > 0 {
+			desc = fmt.Sprintf("%s status: %d", desc, code)
+		}
+		mtype := "DEBUG"
+		msg := fmt.Sprintf("%s: retrying in %s (%d left): ", desc, wait, remain)
+		c.Logger(req, mtype, msg, err)
+		time.Sleep(wait)
+	}
+
+	return nil, fmt.Errorf("%s %s giving up after %d attemps", req.Method, req.URL, c.RetryMax+1)
+}
+
+// DoR wraps calls to the http method with retries
+func (c *Client) DoR(req *Request, urls []string) (*http.Response, error) {
+	for i := 0; i < c.RetryMax; i++ {
+		var code int
+
+		if req.body != nil {
+			if _, err := req.body.Seek(0, 0); err != nil {
+				return nil, fmt.Errorf("failed to seek body: %v", err)
+			}
+		}
+
+		rand.Seed(time.Now().Unix())
+		dest := urls[rand.Intn(len(urls))]
+		req.URL, _ = url.Parse(dest)
 		r, err := c.HTTPClient.Do(req.Request)
 		if err != nil {
 			mtype := "ERROR"
