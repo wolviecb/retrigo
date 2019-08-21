@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
@@ -47,6 +48,7 @@ type Backoff func(min, max time.Duration, attempt int, r *http.Response) time.Du
 type Request struct {
 	body io.ReadSeeker
 	*http.Request
+	urls []string
 }
 
 type lenReader interface {
@@ -98,7 +100,7 @@ func NewClient() *Client {
 }
 
 // NewRequest create a wrapped request
-func NewRequest(method, url string, body io.ReadSeeker) (*Request, error) {
+func NewRequest(method, durl string, body io.ReadSeeker) (*Request, error) {
 	var contentLength int64
 	raw := body
 
@@ -109,12 +111,13 @@ func NewRequest(method, url string, body io.ReadSeeker) (*Request, error) {
 	if body != nil {
 		rBody = ioutil.NopCloser(body)
 	}
-	httpReq, err := http.NewRequest(method, url, rBody)
+	dest := strings.Split(durl, " ")
+	httpReq, err := http.NewRequest(method, durl, rBody)
 	if err != nil {
 		return nil, err
 	}
 	httpReq.ContentLength = contentLength
-	return &Request{body, httpReq}, nil
+	return &Request{body, httpReq, dest}, nil
 }
 
 // Try to read the response body so we can reuse this connection.
@@ -129,8 +132,8 @@ func (c *Client) drainBody(body io.ReadCloser) {
 }
 
 // Get is for simple GET requests
-func (c *Client) Get(url string) (*http.Response, error) {
-	req, err := NewRequest("GET", url, nil)
+func (c *Client) Get(durl string) (*http.Response, error) {
+	req, err := NewRequest("GET", durl, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -138,8 +141,8 @@ func (c *Client) Get(url string) (*http.Response, error) {
 }
 
 // Head is for simple HEAD requests
-func (c *Client) Head(url string) (*http.Response, error) {
-	req, err := NewRequest("HEAD", url, nil)
+func (c *Client) Head(durl string) (*http.Response, error) {
+	req, err := NewRequest("HEAD", durl, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -147,8 +150,8 @@ func (c *Client) Head(url string) (*http.Response, error) {
 }
 
 // Post is for simple POST requests
-func (c *Client) Post(url, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	req, err := NewRequest("POST", url, body)
+func (c *Client) Post(durl, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	req, err := NewRequest("POST", durl, body)
 	if err != nil {
 		return nil, err
 	}
@@ -157,8 +160,8 @@ func (c *Client) Post(url, bodyType string, body io.ReadSeeker) (*http.Response,
 }
 
 // Put is for simple PUT requests
-func (c *Client) Put(url, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	req, err := NewRequest("PUT", url, body)
+func (c *Client) Put(durl, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	req, err := NewRequest("PUT", durl, body)
 	if err != nil {
 		return nil, err
 	}
@@ -167,8 +170,8 @@ func (c *Client) Put(url, bodyType string, body io.ReadSeeker) (*http.Response, 
 }
 
 // Patch is for simple DELETE requests
-func (c *Client) Patch(url string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	req, err := NewRequest("PATCH", url, body)
+func (c *Client) Patch(durl string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	req, err := NewRequest("PATCH", durl, body)
 	if err != nil {
 		return nil, err
 	}
@@ -177,76 +180,8 @@ func (c *Client) Patch(url string, bodyType string, body io.ReadSeeker) (*http.R
 }
 
 // Delete is for simple DELETE requests
-func (c *Client) Delete(url string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	req, err := NewRequest("DELETE", url, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", bodyType)
-	return c.Do(req)
-}
-
-// GetRandom is a simple GET using a randomly chosen server from url []string
-func (c *Client) GetRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	req, err := NewRequest("GET", "", nil)
-	if err != nil {
-		return nil, err
-	}
-	return c.DoR(req, url)
-}
-
-// HeadRandom is a simple HEAD using a randomly chosen server from url []string
-func (c *Client) HeadRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	rand.Seed(time.Now().Unix())
-	dest := url[rand.Intn(len(url))]
-	req, err := NewRequest("HEAD", dest, nil)
-	if err != nil {
-		return nil, err
-	}
-	return c.Do(req)
-}
-
-// PostRandom is a simple POST using a randomly chosen server from url []string
-func (c *Client) PostRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	rand.Seed(time.Now().Unix())
-	dest := url[rand.Intn(len(url))]
-	req, err := NewRequest("POST", dest, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", bodyType)
-	return c.Do(req)
-}
-
-// PutRandom is a simple PUT using a randomly chosen server from url []string
-func (c *Client) PutRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	rand.Seed(time.Now().Unix())
-	dest := url[rand.Intn(len(url))]
-	req, err := NewRequest("PUT", dest, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", bodyType)
-	return c.Do(req)
-}
-
-// PatchRandom is a simple PATCH using a randomly chosen server from url []string
-func (c *Client) PatchRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	rand.Seed(time.Now().Unix())
-	dest := url[rand.Intn(len(url))]
-	req, err := NewRequest("PATCH", dest, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", bodyType)
-	return c.Do(req)
-}
-
-// DeleteRandom is a simple DELETE using a randomly chosen server from url []string
-func (c *Client) DeleteRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
-	rand.Seed(time.Now().Unix())
-	dest := url[rand.Intn(len(url))]
-	req, err := NewRequest("DELETE", dest, body)
+func (c *Client) Delete(durl string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	req, err := NewRequest("DELETE", durl, body)
 	if err != nil {
 		return nil, err
 	}
@@ -265,60 +200,15 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 			}
 		}
 
-		r, err := c.HTTPClient.Do(req.Request)
-		if err != nil {
+		rand.Seed(time.Now().Unix())
+		dest := req.urls[rand.Intn(len(req.urls))]
+		if durl, err := url.Parse(dest); err == nil {
+			req.URL = durl
+		} else {
 			mtype := "ERROR"
-			msg := fmt.Sprintf("%s %s request failed: ", req.Method, req.URL)
+			msg := fmt.Sprintf("Request failed: Bad URL: %s", dest)
 			c.Logger(req, mtype, msg, err)
 		}
-		if r != nil {
-			code = r.StatusCode
-		}
-		checkOK, checkErr := c.CheckForRetry(r, err)
-
-		if !checkOK {
-			if checkErr != nil {
-				err = checkErr
-			}
-			return r, err
-		}
-
-		if err == nil {
-			c.drainBody(r.Body)
-		}
-
-		remain := c.RetryMax - i
-		if remain == 0 {
-			break
-		}
-		wait := c.Backoff(c.RetryWaitMin, c.RetryWaitMax, i, r)
-		desc := fmt.Sprintf("%s %s", req.Method, req.URL)
-		if code > 0 {
-			desc = fmt.Sprintf("%s status: %d", desc, code)
-		}
-		mtype := "DEBUG"
-		msg := fmt.Sprintf("%s: retrying in %s (%d left): ", desc, wait, remain)
-		c.Logger(req, mtype, msg, err)
-		time.Sleep(wait)
-	}
-
-	return nil, fmt.Errorf("%s %s giving up after %d attemps", req.Method, req.URL, c.RetryMax+1)
-}
-
-// DoR wraps calls to the http method with retries
-func (c *Client) DoR(req *Request, urls []string) (*http.Response, error) {
-	for i := 0; i < c.RetryMax; i++ {
-		var code int
-
-		if req.body != nil {
-			if _, err := req.body.Seek(0, 0); err != nil {
-				return nil, fmt.Errorf("failed to seek body: %v", err)
-			}
-		}
-
-		rand.Seed(time.Now().Unix())
-		dest := urls[rand.Intn(len(urls))]
-		req.URL, _ = url.Parse(dest)
 		r, err := c.HTTPClient.Do(req.Request)
 		if err != nil {
 			mtype := "ERROR"
