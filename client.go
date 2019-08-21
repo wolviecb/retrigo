@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -138,6 +139,34 @@ func (c *Client) Get(url string) (*http.Response, error) {
 // Post is for simple POST requests
 func (c *Client) Post(url, bodyType string, body io.ReadSeeker) (*http.Response, error) {
 	req, err := NewRequest("POST", url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", bodyType)
+	return c.Do(req)
+}
+
+// GetRandom is a simple POST using a randomly chosen server from url []string
+func (c *Client) GetRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	rand.Seed(time.Now().Unix())
+	dest := url[rand.Intn(len(url))]
+
+	req, err := NewRequest("GET", dest, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", bodyType)
+	return c.Do(req)
+}
+
+// PostRandom is a simple POST using a randomly chosen server from url []string
+func (c *Client) PostRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	rand.Seed(time.Now().Unix())
+	dest := url[rand.Intn(len(url))]
+
+	req, err := NewRequest("POST", dest, body)
 	if err != nil {
 		return nil, err
 	}
