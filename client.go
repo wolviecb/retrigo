@@ -189,13 +189,21 @@ func (c *Client) Delete(url string, bodyType string, body io.ReadSeeker) (*http.
 func (c *Client) GetRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
 	rand.Seed(time.Now().Unix())
 	dest := url[rand.Intn(len(url))]
-
-	req, err := NewRequest("GET", dest, body)
+	req, err := NewRequest("GET", dest, nil)
 	if err != nil {
 		return nil, err
 	}
+	return c.Do(req)
+}
 
-	req.Header.Set("Content-Type", bodyType)
+// HeadRandom is a simple HEAD using a randomly chosen server from url []string
+func (c *Client) HeadRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	rand.Seed(time.Now().Unix())
+	dest := url[rand.Intn(len(url))]
+	req, err := NewRequest("HEAD", dest, nil)
+	if err != nil {
+		return nil, err
+	}
 	return c.Do(req)
 }
 
@@ -203,12 +211,46 @@ func (c *Client) GetRandom(url []string, bodyType string, body io.ReadSeeker) (*
 func (c *Client) PostRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
 	rand.Seed(time.Now().Unix())
 	dest := url[rand.Intn(len(url))]
-
 	req, err := NewRequest("POST", dest, body)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Content-Type", bodyType)
+	return c.Do(req)
+}
 
+// PutRandom is a simple PUT using a randomly chosen server from url []string
+func (c *Client) PutRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	rand.Seed(time.Now().Unix())
+	dest := url[rand.Intn(len(url))]
+	req, err := NewRequest("PUT", dest, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", bodyType)
+	return c.Do(req)
+}
+
+// PatchRandom is a simple PATCH using a randomly chosen server from url []string
+func (c *Client) PatchRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	rand.Seed(time.Now().Unix())
+	dest := url[rand.Intn(len(url))]
+	req, err := NewRequest("PATCH", dest, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", bodyType)
+	return c.Do(req)
+}
+
+// DeleteRandom is a simple DELETE using a randomly chosen server from url []string
+func (c *Client) DeleteRandom(url []string, bodyType string, body io.ReadSeeker) (*http.Response, error) {
+	rand.Seed(time.Now().Unix())
+	dest := url[rand.Intn(len(url))]
+	req, err := NewRequest("DELETE", dest, body)
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Set("Content-Type", bodyType)
 	return c.Do(req)
 }
