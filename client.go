@@ -95,7 +95,11 @@ func DefaultRetryPolicy(ctx context.Context, r *http.Response, err error) (bool,
 
 // DefaultLogger is a simple default logger
 func DefaultLogger(req *Request, mtype, msg string, err error) {
-	log.Printf(mtype + " " + msg + err.Error())
+	if err != nil {
+		log.Printf(mtype + " " + msg + err.Error())
+	} else {
+		log.Printf(mtype + " " + msg)
+	}
 }
 
 // NewClient return a default new http.client
