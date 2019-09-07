@@ -1,6 +1,7 @@
 package retrigo
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,7 +29,7 @@ var (
 
 // CheckForRetry is called following each request it receives the http.Response
 // and error and returns a bool and a error
-type CheckForRetry func(r *http.Response, err error) (bool, error)
+type CheckForRetry func(ctx context.Context, r *http.Response, err error) (bool, error)
 
 // Client type defines the types used on http.client
 type Client struct {
@@ -55,6 +56,13 @@ type lenReader interface {
 	Len() int
 }
 
+// WithContext returns wrapped Request with a shallow copy of underlying *http.Request
+// with its context changed to ctx. The provided ctx must be non-nil.
+func (r *Request) WithContext(ctx context.Context) *Request {
+	r.Request = r.Request.WithContext(ctx)
+	return r
+}
+
 // Logger type is the function for logging error/debug messages
 type Logger func(req *Request, mtype, msg string, err error)
 
@@ -70,11 +78,15 @@ func DefaultBackoff(min, max time.Duration, attempt int, r *http.Response) time.
 }
 
 // DefaultRetryPolicy is the default policy for retrying http requests
-func DefaultRetryPolicy(r *http.Response, err error) (bool, error) {
+func DefaultRetryPolicy(ctx context.Context, r *http.Response, err error) (bool, error) {
+	if ctx.Err() != nil {
+		return false, ctx.Err()
+	}
+
 	if err != nil {
 		return true, err
 	}
-	if r.StatusCode == http.StatusInternalServerError {
+	if r.StatusCode == 0 || (r.StatusCode >= 500 && r.StatusCode != 501) {
 		return true, nil
 	}
 
@@ -83,7 +95,11 @@ func DefaultRetryPolicy(r *http.Response, err error) (bool, error) {
 
 // DefaultLogger is a simple default logger
 func DefaultLogger(req *Request, mtype, msg string, err error) {
-	log.Printf(mtype + " " + msg + err.Error())
+	if err != nil {
+		log.Printf(mtype + " " + msg + err.Error())
+	} else {
+		log.Printf(mtype + " " + msg)
+	}
 }
 
 // NewClient return a default new http.client
@@ -191,7 +207,7 @@ func (c *Client) Delete(durl string, bodyType string, body io.ReadSeeker) (*http
 
 // Do wraps calls to the http method with retries
 func (c *Client) Do(req *Request) (*http.Response, error) {
-	for i := 0; i < c.RetryMax; i++ {
+	for i := 0; i <= c.RetryMax; i++ {
 		var code int
 
 		if req.body != nil {
@@ -218,7 +234,7 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 		if r != nil {
 			code = r.StatusCode
 		}
-		checkOK, checkErr := c.CheckForRetry(r, err)
+		checkOK, checkErr := c.CheckForRetry(req.Context(), r, err)
 
 		if !checkOK {
 			if checkErr != nil {
