@@ -91,7 +91,7 @@ func testClientDo(t *testing.T, body io.ReadSeeker) {
 	client.RetryWaitMin = 10 * time.Millisecond
 	client.RetryWaitMax = 50 * time.Millisecond
 	client.RetryMax = 50
-	client.Logger = func(mtype, msg string, err error) {
+	client.Logger = func(req *Request, mtype, msg string, err error) {
 		retryCount++
 		if err != nil {
 			log.Printf(mtype + " " + msg + err.Error())
