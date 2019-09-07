@@ -207,7 +207,7 @@ func (c *Client) Delete(durl string, bodyType string, body io.ReadSeeker) (*http
 
 // Do wraps calls to the http method with retries
 func (c *Client) Do(req *Request) (*http.Response, error) {
-	for i := 0; i < c.RetryMax; i++ {
+	for i := 0; i <= c.RetryMax; i++ {
 		var code int
 
 		if req.body != nil {
