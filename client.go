@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
@@ -23,8 +22,7 @@ var (
 	DefaultRetryWaitMax = 30 * time.Second
 	// DefaultRetryMax is the default maximum retries
 	DefaultRetryMax = 10
-	//
-	respReadLimit = int64(4096)
+	respReadLimit   = int64(4096)
 )
 
 // CheckForRetry is called following each request it receives the http.Response
@@ -40,6 +38,7 @@ type Client struct {
 	CheckForRetry CheckForRetry
 	Backoff       Backoff
 	Logger        Logger
+	Scheduler     Scheduler
 }
 
 // Backoff type is the function for calculating the wait time between failed requests
@@ -65,6 +64,9 @@ func (r *Request) WithContext(ctx context.Context) *Request {
 
 // Logger type is the function for logging error/debug messages
 type Logger func(req *Request, mtype, msg string, err error)
+
+// Scheduler type is a the function for that return the next target and index for the Do function
+type Scheduler func(servers []string, i int) (string, int)
 
 // DefaultBackoff is the default function for calculating the Backoff period
 // it's a simple exponential of 2**attempt * RetryWaitMin limited by RetryWaitMax
@@ -102,6 +104,21 @@ func DefaultLogger(req *Request, mtype, msg string, err error) {
 	}
 }
 
+// DefaultScheduler round-robins a list of urls from servers
+func DefaultScheduler(servers []string, j int) (string, int) {
+	// The Do function defines a index j which is used by the Scheduler() for returning the
+	// next target and next index, this DefaultScheduler round-robins requests so when j is
+	// bigger than the lenght of servers it means that we reached the end of server list and
+	// we need to reset and start from the beginning
+	if j >= len(servers) {
+		j = 0
+	}
+	server := servers[j]
+	j++
+
+	return server, j
+}
+
 // NewClient return a default new http.client
 func NewClient() *Client {
 	return &Client{
@@ -112,6 +129,7 @@ func NewClient() *Client {
 		CheckForRetry: DefaultRetryPolicy,
 		Backoff:       DefaultBackoff,
 		Logger:        DefaultLogger,
+		Scheduler:     DefaultScheduler,
 	}
 }
 
@@ -207,6 +225,7 @@ func (c *Client) Delete(durl string, bodyType string, body io.ReadSeeker) (*http
 
 // Do wraps calls to the http method with retries
 func (c *Client) Do(req *Request) (*http.Response, error) {
+	j := 0
 	for i := 0; i <= c.RetryMax; i++ {
 		var code int
 
@@ -215,9 +234,8 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 				return nil, fmt.Errorf("failed to seek body: %v", err)
 			}
 		}
-
-		rand.Seed(time.Now().Unix())
-		dest := req.urls[rand.Intn(len(req.urls))]
+		var dest string
+		dest, j = c.Scheduler(req.urls, j)
 		if durl, err := url.Parse(dest); err == nil {
 			req.URL = durl
 		} else {
