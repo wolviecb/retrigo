@@ -196,7 +196,7 @@ func DefaultScheduler(servers []string, j int) (string, int) {
 // NewClient creates a new Client with default settings.
 func NewClient() *Client {
 	return &Client{
-		HTTPClient:    cleanhttp.DefaultClient(),
+		HTTPClient:    cleanhttp.DefaultPooledClient(),
 		RetryWaitMin:  DefaultRetryWaitMin,
 		RetryWaitMax:  DefaultRetryWaitMax,
 		RetryMax:      DefaultRetryMax,
