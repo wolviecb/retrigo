@@ -83,7 +83,9 @@ type Request struct {
 	urls []string
 }
 
-type lenReader interface {
+// LenReader is an interface implemented by many in-memory io.Reader's. Used
+// for automatically sending the right Content-Length header when possible.
+type LenReader interface {
 	Len() int
 }
 
@@ -210,7 +212,7 @@ func NewRequest(method, durl string, body io.ReadSeeker) (*Request, error) {
 	var contentLength int64
 	raw := body
 
-	if lr, ok := raw.(lenReader); ok {
+	if lr, ok := raw.(LenReader); ok {
 		contentLength = int64(lr.Len())
 	}
 	var rBody io.ReadCloser
