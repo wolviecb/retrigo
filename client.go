@@ -47,26 +47,35 @@ var (
 	respReadLimit   = int64(4096)
 )
 
-// CheckForRetry is called following each request it receives the http.Response
+// CheckForRetry is called following each request, it receives the http.Response
 // and error and returns a bool and a error
 type CheckForRetry func(ctx context.Context, r *http.Response, err error) (bool, error)
 
-// Client type defines the types used on http.client
+// Client is used to make HTTP requests. It adds additional functionality
+// like automatic retries to tolerate minor outages.
 type Client struct {
-	HTTPClient    *http.Client
-	RetryWaitMin  time.Duration
-	RetryWaitMax  time.Duration
-	RetryMax      int
+	HTTPClient   *http.Client  // Internal HTTP client.
+	RetryWaitMin time.Duration // Minimum time to wait
+	RetryWaitMax time.Duration // Maximum time to wait
+	RetryMax     int           // Maximum number of retries
+
+	// CheckForRetry specifies the policy for handling retries, and is called
+	// after each request. The default policy is DefaultRetryPolicy.
 	CheckForRetry CheckForRetry
-	Backoff       Backoff
-	Logger        Logger
-	Scheduler     Scheduler
+	Backoff       Backoff // Backoff specifies the policy for how long to wait between retries
+	Logger        Logger  // Customer logger instance.
+
+	// Scheduler specifies a the which of the suplied targets should be used next, it's called
+	// before each request. The default Scheduler is DefaultScheduler
+	Scheduler Scheduler
 }
 
-// Backoff type is the function for calculating the wait time between failed requests
+// Backoff specifies a policy for how long to wait between retries.
+// It is called after a failing request to determine the amount of time
+// that should pass before trying again.
 type Backoff func(min, max time.Duration, attempt int, r *http.Response) time.Duration
 
-// Request is the type for storing the http.Request
+// Request wraps the metadata needed to create HTTP requests.
 type Request struct {
 	body io.ReadSeeker
 	*http.Request
@@ -84,14 +93,15 @@ func (r *Request) WithContext(ctx context.Context) *Request {
 	return r
 }
 
-// Logger type is the function for logging error/debug messages
+// Logger is for logging error/debug messages
 type Logger func(req *Request, mtype, msg string, err error)
 
-// Scheduler type is a the function for that return the next target and index for the Do function
+// Scheduler is for returning the next target and index for the Do function
 type Scheduler func(servers []string, i int) (string, int)
 
-// DefaultBackoff is the default function for calculating the Backoff period
-// it's a simple exponential of 2**attempt * RetryWaitMin limited by RetryWaitMax
+// DefaultBackoff provides a default callback for Client.Backoff which
+// will perform exponential backoff based on the attempt number and limited
+// by the provided minimum and maximum durations.
 func DefaultBackoff(min, max time.Duration, attempt int, r *http.Response) time.Duration {
 	m := math.Pow(2, float64(attempt)) * float64(min)
 	s := time.Duration(m)
@@ -117,7 +127,7 @@ func DefaultRetryPolicy(ctx context.Context, r *http.Response, err error) (bool,
 	return false, nil
 }
 
-// DefaultLogger is a simple default logger
+// DefaultLogger is a simple logger
 func DefaultLogger(req *Request, mtype, msg string, err error) {
 	if err != nil {
 		log.Printf(mtype + " " + msg + err.Error())
@@ -141,7 +151,7 @@ func DefaultScheduler(servers []string, j int) (string, int) {
 	return server, j
 }
 
-// NewClient return a default new http.client
+// NewClient creates a new Client with default settings.
 func NewClient() *Client {
 	return &Client{
 		HTTPClient:    cleanhttp.DefaultClient(),
@@ -245,7 +255,7 @@ func (c *Client) Delete(durl string, bodyType string, body io.ReadSeeker) (*http
 	return c.Do(req)
 }
 
-// Do wraps calls to the http method with retries
+// Do wraps calling an HTTP method with retries.
 func (c *Client) Do(req *Request) (*http.Response, error) {
 	j := 0
 	for i := 0; i <= c.RetryMax; i++ {
