@@ -43,9 +43,9 @@ func TestRequest(t *testing.T) {
 	}
 
 	// Sets the Content-Length automatically for LenReaders
-	// if req.ContentLength != 2 {
-	// 	t.Fatalf("bad ContentLength: %d", req.ContentLength)
-	// }
+	if req.ContentLength != 2 {
+		t.Fatalf("bad ContentLength: %d", req.ContentLength)
+	}
 }
 
 // Since normal ways we would generate a Reader have special cases, use a
