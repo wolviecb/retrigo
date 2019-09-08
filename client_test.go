@@ -77,7 +77,7 @@ func TestClient_Do(t *testing.T) {
 
 func testClientDo(t *testing.T, body io.ReadSeeker) {
 	// Create a request
-	req, err := NewRequest("PUT", "http://127.0.0.1:28934/v1/foo", body)
+	req, err := NewRequest("PUT", "http://127.0.0.1:28934/v1/foo http://127.0.0.2:28934/v1/foo http://127.0.0.3:28934/v1/foo", body)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -85,6 +85,9 @@ func testClientDo(t *testing.T, body io.ReadSeeker) {
 
 	// Track the number of times the logging hook was called
 	retryCount := -1
+
+	// Track the scheduler index changes
+	schedulerCount := 0
 
 	// Create the client. Use short retry windows.
 	client := NewClient()
@@ -98,6 +101,16 @@ func testClientDo(t *testing.T, body io.ReadSeeker) {
 		} else {
 			log.Printf(mtype + " " + msg)
 		}
+	}
+	client.Scheduler = func(servers []string, j int) (string, int) {
+		if j >= len(servers) {
+			j = 0
+		}
+		server := servers[j]
+		j++
+		schedulerCount++
+
+		return server, j
 	}
 
 	// Send the request
@@ -182,6 +195,10 @@ func testClientDo(t *testing.T, body io.ReadSeeker) {
 
 	if retryCount < 0 {
 		t.Fatal("request log hook was not called")
+	}
+
+	if schedulerCount < 1 {
+		t.Fatal("scheduler hook was not called")
 	}
 }
 

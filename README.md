@@ -13,7 +13,7 @@ c := retrigo.NewClient()
 resp, err := c.Post("http://localhost", "text/plain", bytes.NewReader([]byte{}))
 ```
 
-Setting some parameters
+Setting parameters
 
 ```go
 c := retrigo.Client{
@@ -26,7 +26,21 @@ c := retrigo.Client{
   RetryMax:      5,
   CheckForRetry: retrigo.DefaultRetryPolicy,
   Backoff:       retrigo.DefaultBackoff,
+  Scheduler: retrigo.DefaulScheduler,
 }
+resp, err := c.Get("http://localhost")
 ```
 
-The url parameter (`c.Post("URL")`) can be one URL or a space separated list of URLs that the library will randomly choose as target (e. g. `"URL1 URL2 URL3"`)
+## Multiple targets
+
+The url parameter (`c.Post("URL")`) can be one url or a space separated list of urls that the library will choose as target (e. g. `"URL1 URL2 URL3"`). The default Scheduler() will round-robin around all urls of the list, you can implement other scheduling strategies by defining your own Scheduler() e.g.:
+
+```go
+c := retrigo.NewClient()
+c = func(servers []string, j int) (string, int) {
+  ...
+```
+
+## Logging
+
+The Logger() function defines the logging methods/format, this function will recieve a severity, a message and a error struct.
