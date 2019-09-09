@@ -39,6 +39,7 @@ The url parameter (`c.Post("URL")`) can be one url or a space separated list of 
 c := retrigo.NewClient()
 c.Scheduler = func(servers []string, j int) (string, int) {
   ...
+}
 ```
 
 ## Logging
