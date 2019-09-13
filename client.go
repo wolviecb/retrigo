@@ -220,7 +220,7 @@ func NewRequest(method, durl string, body io.ReadSeeker) (*Request, error) {
 		rBody = ioutil.NopCloser(body)
 	}
 	dest := strings.Split(durl, " ")
-	httpReq, err := http.NewRequest(method, durl, rBody)
+	httpReq, err := http.NewRequest(method, dest[0], rBody)
 	if err != nil {
 		return nil, err
 	}
