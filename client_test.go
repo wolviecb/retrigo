@@ -29,6 +29,12 @@ func TestRequest(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Should work with multiple urls space separetad
+	_, err = NewRequest("GET", "http://foo http://bar", nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	// Works with request body
 	body := bytes.NewReader([]byte("yo"))
 	req, err := NewRequest("GET", "/", body)
