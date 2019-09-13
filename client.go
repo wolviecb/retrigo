@@ -219,7 +219,15 @@ func NewRequest(method, durl string, body io.ReadSeeker) (*Request, error) {
 	if body != nil {
 		rBody = ioutil.NopCloser(body)
 	}
+	// We need to validate all urls on the incoming string before proceding.
 	dest := strings.Split(durl, " ")
+	for _, t := range dest {
+		_, err := url.Parse(t)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// Then we build the http request with the first url on the resulting slice
 	httpReq, err := http.NewRequest(method, dest[0], rBody)
 	if err != nil {
 		return nil, err
