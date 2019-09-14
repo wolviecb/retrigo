@@ -16,6 +16,9 @@ import (
 	"time"
 )
 
+func init() {
+	DefaultRetryWaitMin = 1 * time.Microsecond
+}
 func TestRequest(t *testing.T) {
 	// Fails on invalid request
 	_, err := NewRequest("GET", "://foo", nil)
@@ -254,6 +257,26 @@ func TestClient_Get(t *testing.T) {
 	resp.Body.Close()
 }
 
+func TestClient_Get_multi(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			t.Fatalf("bad method: %s", r.Method)
+		}
+		if r.RequestURI != "/foo/bar" {
+			t.Fatalf("bad uri: %s", r.RequestURI)
+		}
+		w.WriteHeader(200)
+	}))
+	defer ts.Close()
+
+	// Make the request.
+	resp, err := NewClient().Get("https://localhost:65535 " + ts.URL + "/foo/bar")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp.Body.Close()
+}
+
 func TestClient_RequestWithContext(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -366,6 +389,27 @@ func TestClient_Head(t *testing.T) {
 	resp.Body.Close()
 }
 
+func TestClient_Head_multi(t *testing.T) {
+	// Mock server which always responds 200.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "HEAD" {
+			t.Fatalf("bad method: %s", r.Method)
+		}
+		if r.RequestURI != "/foo/bar" {
+			t.Fatalf("bad uri: %s", r.RequestURI)
+		}
+		w.WriteHeader(200)
+	}))
+	defer ts.Close()
+
+	// Make the request.
+	resp, err := NewClient().Head("https://localhost:65535 " + ts.URL + "/foo/bar")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp.Body.Close()
+}
+
 func TestClient_Post(t *testing.T) {
 	// Mock server which always responds 200.
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -396,6 +440,44 @@ func TestClient_Post(t *testing.T) {
 	// Make the request.
 	resp, err := NewClient().Post(
 		ts.URL+"/foo/bar",
+		"application/json",
+		strings.NewReader(`{"hello":"world"}`))
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp.Body.Close()
+}
+
+func TestClient_Post_multi(t *testing.T) {
+	// Mock server which always responds 200.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Fatalf("bad method: %s", r.Method)
+		}
+		if r.RequestURI != "/foo/bar" {
+			t.Fatalf("bad uri: %s", r.RequestURI)
+		}
+		if ct := r.Header.Get("Content-Type"); ct != "application/json" {
+			t.Fatalf("bad content-type: %s", ct)
+		}
+
+		// Check the payload
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		expected := []byte(`{"hello":"world"}`)
+		if !bytes.Equal(body, expected) {
+			t.Fatalf("bad: %v", body)
+		}
+
+		w.WriteHeader(200)
+	}))
+	defer ts.Close()
+
+	// Make the request.
+	resp, err := NewClient().Post(
+		"https://localhost:65535 "+ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
 	if err != nil {
