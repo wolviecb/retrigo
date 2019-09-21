@@ -23,6 +23,7 @@
 package retrigo
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -45,7 +46,17 @@ var (
 	DefaultRetryWaitMax = 30 * time.Second
 	// DefaultRetryMax is the default maximum retries
 	DefaultRetryMax = 10
-	respReadLimit   = int64(4096)
+	// defaultClient is used for performing requests without explicitly making
+	// a new client. It is purposely private to avoid modifications.
+	defaultClient = NewClient()
+
+	// We need to consume response bodies to maintain http connections, but
+	// limit the size we consume to respReadLimit.
+	respReadLimit = int64(4096)
+
+	// FirstTarget in the first index that is going to be used when trying
+	// to reach the target url from the urls slice
+	FirstTarget = 0
 )
 
 // CheckForRetry is called following each request, it receives the http.Response
@@ -76,9 +87,12 @@ type Client struct {
 // that should pass before trying again.
 type Backoff func(min, max time.Duration, attempt int, r *http.Response) time.Duration
 
+// ReaderFunc is the type of function that can be given natively to NewRequest
+type ReaderFunc func() (io.Reader, error)
+
 // Request wraps the metadata needed to create HTTP requests.
 type Request struct {
-	body io.ReadSeeker
+	body ReaderFunc
 	*http.Request
 	urls []string
 }
@@ -207,18 +221,117 @@ func NewClient() *Client {
 	}
 }
 
-// NewRequest create a wrapped request
-func NewRequest(method, durl string, body io.ReadSeeker) (*Request, error) {
+func getBodyReaderAndContentLength(rawBody interface{}) (ReaderFunc, int64, error) {
+	var bodyReader ReaderFunc
 	var contentLength int64
-	raw := body
 
-	if lr, ok := raw.(LenReader); ok {
-		contentLength = int64(lr.Len())
+	if rawBody != nil {
+		switch body := rawBody.(type) {
+		// If they gave us a function already, great! Use it.
+		case ReaderFunc:
+			bodyReader = body
+			tmp, err := body()
+			if err != nil {
+				return nil, 0, err
+			}
+			if lr, ok := tmp.(LenReader); ok {
+				contentLength = int64(lr.Len())
+			}
+			if c, ok := tmp.(io.Closer); ok {
+				c.Close()
+			}
+
+		case func() (io.Reader, error):
+			bodyReader = body
+			tmp, err := body()
+			if err != nil {
+				return nil, 0, err
+			}
+			if lr, ok := tmp.(LenReader); ok {
+				contentLength = int64(lr.Len())
+			}
+			if c, ok := tmp.(io.Closer); ok {
+				c.Close()
+			}
+
+		// If a regular byte slice, we can read it over and over via new
+		// readers
+		case []byte:
+			buf := body
+			bodyReader = func() (io.Reader, error) {
+				return bytes.NewReader(buf), nil
+			}
+			contentLength = int64(len(buf))
+
+		// If a bytes.Buffer we can read the underlying byte slice over and
+		// over
+		case *bytes.Buffer:
+			buf := body
+			bodyReader = func() (io.Reader, error) {
+				return bytes.NewReader(buf.Bytes()), nil
+			}
+			contentLength = int64(buf.Len())
+
+		// We prioritize *bytes.Reader here because we don't really want to
+		// deal with it seeking so want it to match here instead of the
+		// io.ReadSeeker case.
+		case *bytes.Reader:
+			buf, err := ioutil.ReadAll(body)
+			if err != nil {
+				return nil, 0, err
+			}
+			bodyReader = func() (io.Reader, error) {
+				return bytes.NewReader(buf), nil
+			}
+			contentLength = int64(len(buf))
+
+		// Compat case
+		case io.ReadSeeker:
+			raw := body
+			bodyReader = func() (io.Reader, error) {
+				_, err := raw.Seek(0, 0)
+				return ioutil.NopCloser(raw), err
+			}
+			if lr, ok := raw.(LenReader); ok {
+				contentLength = int64(lr.Len())
+			}
+
+		// Read all in so we can reset
+		case io.Reader:
+			buf, err := ioutil.ReadAll(body)
+			if err != nil {
+				return nil, 0, err
+			}
+			bodyReader = func() (io.Reader, error) {
+				return bytes.NewReader(buf), nil
+			}
+			contentLength = int64(len(buf))
+
+		default:
+			return nil, 0, fmt.Errorf("cannot handle type %T", rawBody)
+		}
 	}
-	var rBody io.ReadCloser
-	if body != nil {
-		rBody = ioutil.NopCloser(body)
+	return bodyReader, contentLength, nil
+}
+
+// FromRequest wraps an http.Request in a retryablehttp.Request
+func FromRequest(r *http.Request, durl string) (*Request, error) {
+	bodyReader, _, err := getBodyReaderAndContentLength(r.Body)
+	if err != nil {
+		return nil, err
 	}
+	dest := strings.Split(durl, " ")
+	// Could assert contentLength == r.ContentLength
+	return &Request{bodyReader, r, dest}, nil
+}
+
+// NewRequest create a wrapped request
+func NewRequest(method, durl string, rawBody interface{}) (*Request, error) {
+	bodyReader, contentLength, err := getBodyReaderAndContentLength(rawBody)
+	if err != nil {
+		return nil, err
+	}
+
 	// We need to validate all urls on the incoming string before proceding.
 	dest := strings.Split(durl, " ")
 	for _, t := range dest {
@@ -228,12 +341,12 @@ func NewRequest(method, durl string, body io.ReadSeeker) (*Request, error) {
 		}
 	}
 	// Then we build the http request with the first url on the resulting slice
-	httpReq, err := http.NewRequest(method, dest[0], rBody)
+	httpReq, err := http.NewRequest(method, dest[0], nil)
 	if err != nil {
 		return nil, err
 	}
 	httpReq.ContentLength = contentLength
-	return &Request{body, httpReq, dest}, nil
+	return &Request{bodyReader, httpReq, dest}, nil
 }
 
 // Try to read the response body so we can reuse this connection.
@@ -305,26 +418,40 @@ func (c *Client) Delete(durl string, bodyType string, body io.ReadSeeker) (*http
 	return c.Do(req)
 }
 
+func parseURL(dest string) *url.URL {
+	u, _ := url.Parse(dest)
+	return u
+}
+
 // Do wraps calling an HTTP method with retries.
 func (c *Client) Do(req *Request) (*http.Response, error) {
-	j := 0
-	for i := 0; i <= c.RetryMax; i++ {
-		var code int
+	if c.HTTPClient == nil {
+		c.HTTPClient = cleanhttp.DefaultPooledClient()
+	}
 
+	j := FirstTarget
+
+	var resp *http.Response
+	for i := 0; i <= c.RetryMax; i++ {
+		var code int // HTTP response code
+
+		// Always rewind the request body when non-nil.
 		if req.body != nil {
-			if _, err := req.body.Seek(0, 0); err != nil {
-				return nil, fmt.Errorf("failed to seek body: %v", err)
+			body, err := req.body()
+			if err != nil {
+				c.HTTPClient.CloseIdleConnections()
+				return resp, err
+			}
+			if c, ok := body.(io.ReadCloser); ok {
+				req.Body = c
+			} else {
+				req.Body = ioutil.NopCloser(body)
 			}
 		}
-		var dest string
+		dest := ""
 		dest, j = c.Scheduler(req.urls, j)
-		if durl, err := url.Parse(dest); err == nil {
-			req.URL = durl
-		} else {
-			mtype := "ERROR"
-			msg := fmt.Sprintf("Request failed: Bad URL: %s", dest)
-			c.Logger(req, mtype, msg, err)
-		}
+		req.URL = parseURL(dest)
+		// Attempt the request
 		r, err := c.HTTPClient.Do(req.Request)
 		if err != nil {
 			mtype := "ERROR"
