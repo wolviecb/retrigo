@@ -11,29 +11,49 @@ Using default client
 ```go
 c := retrigo.NewClient()
 resp, err := c.Post("http://localhost", "text/plain", bytes.NewReader([]byte{}))
+...
 ```
 
-Setting parameters
+Setting all parameters
 
 ```go
 c := retrigo.Client{
   HTTPClient: &http.Client{
     Timeout: 10 * time.Second,
   },
-  Logger:        retrigo.DefaulLogger,
+  Logger:        retrigo.DefaultLogger,
   RetryWaitMin:  20 * time.Millisecond,
   RetryWaitMax:  10 * time.Second,
   RetryMax:      5,
   CheckForRetry: retrigo.DefaultRetryPolicy,
   Backoff:       retrigo.DefaultBackoff,
-  Scheduler: retrigo.DefaulScheduler,
+  Scheduler:     retrigo.DefaultScheduler,
 }
 resp, err := c.Get("http://localhost")
+...
+```
+
+Setting some parameters
+
+```go
+c := retrigo.NewClient()
+c.RetryWaitMin = 20 * time.Millisecond
+c.RetryWaitMax = 10 * time.Second
+c.Backoff = retrigo.LinearJitterBackoff
+resp, err := c.Get("http://localhost")
+...
+```
+
+Without creating a client
+
+```go
+resp, err := retrigo.Get("http://localhost")
+...
 ```
 
 ## Multiple targets
 
-The url parameter (`c.Post("URL")`) can be one url or a space separated list of urls that the library will choose as target (e. g. `"URL1 URL2 URL3"`). The default Scheduler() will round-robin around all urls of the list, you can implement other scheduling strategies by defining your own Scheduler() e.g.:
+The url parameter (e. g., `c.Get("URL")`) can be one url or a space separated list of urls that the library will choose as target (e. g., `"URL1 URL2 URL3"`). The default Scheduler() will round-robin around all urls of the list, you can implement other scheduling strategies by defining your own Scheduler() e.g.:
 
 ```go
 c := retrigo.NewClient()
