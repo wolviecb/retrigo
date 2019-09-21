@@ -531,5 +531,5 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 		time.Sleep(wait)
 	}
 
-	return nil, fmt.Errorf("%s %s giving up after %d attemps", req.Method, req.URL, c.RetryMax+1)
+	return nil, fmt.Errorf("%s %s giving up after %d attemps", req.Method, req.URL, c.RetryMax)
 }
