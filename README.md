@@ -1,6 +1,6 @@
 # Retrigo - Very simple http retriable client
 
-[![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0) [![Build Status](https://travis-ci.com/wolviecb/retrigo.svg?branch=master)](https://travis-ci.com/wolviecb/retrigo)
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0) [![Build Status](https://travis-ci.com/wolviecb/retrigo.svg?branch=master)](https://travis-ci.com/wolviecb/retrigo) [![codecov](https://codecov.io/gh/wolviecb/retrigo/branch/master/graph/badge.svg)](https://codecov.io/gh/wolviecb/retrigo)
 
 Retrigo is a very striped down version of the [hashicorp/go-retryablehttp](https://github.com/hashicorp/go-retryablehttp), it implements the familiar HTTP package with automatic retries and backoff method, check [hashicorp/go-retryablehttp](https://github.com/hashicorp/go-retryablehttp) for more details
 
