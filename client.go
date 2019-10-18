@@ -40,7 +40,7 @@ import (
 )
 
 var (
-	// DefaultRetryWaitMin is the default minimium wait time
+	// DefaultRetryWaitMin is the default minimum wait time
 	DefaultRetryWaitMin = 1 * time.Second
 	// DefaultRetryWaitMax is the default maximum wait time
 	DefaultRetryWaitMax = 30 * time.Second
@@ -132,7 +132,7 @@ func DefaultBackoff(min, max time.Duration, attempt int, r *http.Response) time.
 // perform linear backoff based on the attempt number and with jitter to
 // prevent a thundering herd.
 //
-// min and max here are *not* absolute values. The number to be multipled by
+// min and max here are *not* absolute values. The number to be multiplied by
 // the attempt number will be chosen at random from between them, thus they are
 // bounding the jitter.
 //
@@ -196,7 +196,7 @@ func DefaultLogger(req *Request, mtype, msg string, err error) {
 func DefaultScheduler(servers []string, j int) (string, int) {
 	// The Do function defines a index j which is used by the Scheduler() for returning the
 	// next target and next index, this DefaultScheduler round-robins requests so when j is
-	// bigger than the lenght of servers it means that we reached the end of server list and
+	// bigger than the length of servers it means that we reached the end of server list and
 	// we need to reset and start from the beginning
 	if j >= len(servers) {
 		j = 0
@@ -332,7 +332,7 @@ func NewRequest(method, durl string, rawBody interface{}) (*Request, error) {
 		return nil, err
 	}
 
-	// We need to validate all urls on the incoming string before proceding.
+	// We need to validate all urls on the incoming string before proceeding.
 	dest := strings.Split(durl, " ")
 	for _, t := range dest {
 		_, err := url.Parse(t)
@@ -531,5 +531,5 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 		time.Sleep(wait)
 	}
 
-	return nil, fmt.Errorf("%s %s giving up after %d attemps", req.Method, req.URL, c.RetryMax)
+	return nil, fmt.Errorf("%s %s giving up after %d attempts", req.Method, req.URL, c.RetryMax)
 }
