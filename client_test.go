@@ -56,6 +56,12 @@ func TestRequest(t *testing.T) {
 	if req.ContentLength != 2 {
 		t.Fatalf("bad ContentLength: %d", req.ContentLength)
 	}
+
+	// Should fail on invalid body types
+	req, err = NewRequest("POST", "http://foo", "invalid")
+	if err == nil {
+		t.Fatalf("Should Fail")
+	}
 }
 
 func TestFromRequest(t *testing.T) {
