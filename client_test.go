@@ -20,6 +20,12 @@ func init() {
 	DefaultRetryWaitMin = 1 * time.Microsecond
 }
 
+func checkErr(t *testing.T, err error) {
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
+
 func TestRequest(t *testing.T) {
 	// Fails on invalid request
 	_, err := NewRequest("GET", "://foo", nil)
@@ -29,22 +35,16 @@ func TestRequest(t *testing.T) {
 
 	// Works with no request body
 	_, err = NewRequest("GET", "http://foo", nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 
 	// Should work with multiple urls space separetad
 	_, err = NewRequest("GET", "http://foo http://bar", nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 
 	// Works with request body
 	body := bytes.NewReader([]byte("yo"))
 	req, err := NewRequest("GET", "/", body)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 
 	// Request allows typical HTTP request forming methods
 	req.Header.Set("X-Test", "foo")
@@ -68,25 +68,17 @@ func TestFromRequest(t *testing.T) {
 	durl := "http://foo"
 	// Works with no request body
 	httpReq, err := http.NewRequest("GET", durl, nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	_, err = FromRequest(httpReq, durl)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 
 	// Works with request body
 	durl = "/"
 	body := bytes.NewReader([]byte("yo"))
 	httpReq, err = http.NewRequest("GET", durl, body)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	req, err := FromRequest(httpReq, durl)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 
 	// Preserves headers
 	httpReq.Header.Set("X-Test", "foo")
@@ -147,9 +139,7 @@ func TestClient_Do(t *testing.T) {
 func testClientDo(t *testing.T, body interface{}) {
 	// Create a request
 	req, err := NewRequest("PUT", "http://127.0.0.1:28934/v1/foo http://127.0.0.2:28934/v1/foo http://127.0.0.3:28934/v1/foo", body)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	req.Header.Set("foo", "bar")
 
 	// Track the number of times the logging hook was called
@@ -184,9 +174,7 @@ func testClientDo(t *testing.T, body interface{}) {
 		defer close(doneCh)
 		var err error
 		resp, err = client.Do(req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		checkErr(t, err)
 	}()
 
 	select {
@@ -216,9 +204,7 @@ func testClientDo(t *testing.T, body interface{}) {
 
 		// Check the payload
 		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		checkErr(t, err)
 		expected := []byte("hello")
 		if !bytes.Equal(body, expected) {
 			t.Fatalf("bad: %v", body)
@@ -229,9 +215,7 @@ func testClientDo(t *testing.T, body interface{}) {
 
 	// Create a test server
 	list, err := net.Listen("tcp", ":28934")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	defer list.Close()
 	go http.Serve(list, handler)
 
@@ -281,9 +265,7 @@ func TestClient_Do_fails(t *testing.T) {
 
 	// Create the request
 	req, err := NewRequest("POST", ts.URL, nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 
 	// Send the request.
 	_, err = client.Do(req)
@@ -306,9 +288,7 @@ func TestClient_Get(t *testing.T) {
 
 	// Make the request.
 	resp, err := NewClient().Get(ts.URL + "/foo/bar")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -326,9 +306,7 @@ func TestClient_Get_clientless(t *testing.T) {
 
 	// Make the request.
 	resp, err := Get(ts.URL + "/foo/bar")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -346,9 +324,7 @@ func TestClient_Get_multi(t *testing.T) {
 
 	// Make the request.
 	resp, err := NewClient().Get("https://localhost:65535 " + ts.URL + "/foo/bar")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -367,9 +343,7 @@ func TestClient_Head(t *testing.T) {
 
 	// Make the request.
 	resp, err := NewClient().Head(ts.URL + "/foo/bar")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -388,9 +362,7 @@ func TestClient_Head_clientless(t *testing.T) {
 
 	// Make the request.
 	resp, err := Head(ts.URL + "/foo/bar")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -409,9 +381,7 @@ func TestClient_Head_multi(t *testing.T) {
 
 	// Make the request.
 	resp, err := NewClient().Head("https://localhost:65535 " + ts.URL + "/foo/bar")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -447,9 +417,7 @@ func TestClient_Post(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -485,9 +453,7 @@ func TestClient_Post_clientless(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -523,9 +489,7 @@ func TestClient_Post_multi(t *testing.T) {
 		"https://localhost:65535 "+ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -558,15 +522,11 @@ func TestClient_PostForm(t *testing.T) {
 
 	// Create the form data.
 	form, err := url.ParseQuery("hello=world")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 
 	// Make the request.
 	resp, err := NewClient().PostForm(ts.URL+"/foo/bar", form)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -599,15 +559,11 @@ func TestClient_PostForm_clientless(t *testing.T) {
 
 	// Create the form data.
 	form, err := url.ParseQuery("hello=world")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 
 	// Make the request.
 	resp, err := PostForm(ts.URL+"/foo/bar", form)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -640,15 +596,11 @@ func TestClient_PostForm_multi(t *testing.T) {
 
 	// Create the form data.
 	form, err := url.ParseQuery("hello=world")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 
 	// Make the request.
 	resp, err := NewClient().PostForm("https://localhost "+ts.URL+"/foo/bar", form)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -684,9 +636,7 @@ func TestClient_Put(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -722,9 +672,7 @@ func TestClient_Put_clientless(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -760,9 +708,7 @@ func TestClient_Put_multi(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 func TestClient_Patch(t *testing.T) {
@@ -797,9 +743,7 @@ func TestClient_Patch(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 func TestClient_Patch_clientless(t *testing.T) {
@@ -834,9 +778,7 @@ func TestClient_Patch_clientless(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -872,9 +814,7 @@ func TestClient_Patch_multi(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -910,9 +850,7 @@ func TestClient_Delete(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -948,9 +886,7 @@ func TestClient_Delete_clientless(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -986,9 +922,7 @@ func TestClient_Delete_multi(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 }
 
@@ -1000,9 +934,7 @@ func TestClient_RequestWithContext(t *testing.T) {
 	defer ts.Close()
 
 	req, err := NewRequest(http.MethodGet, ts.URL, nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	ctx, cancel := context.WithCancel(req.Request.Context())
 	req = req.WithContext(ctx)
 
@@ -1191,9 +1123,7 @@ func TestClient_BackoffCustom(t *testing.T) {
 
 	// Make the request.
 	resp, err := client.Get(ts.URL + "/foo/bar")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	checkErr(t, err)
 	resp.Body.Close()
 	if retries != int32(client.RetryMax) {
 		t.Fatalf("expected retries: %d != %d", client.RetryMax, retries)
