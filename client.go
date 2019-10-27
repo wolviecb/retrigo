@@ -221,6 +221,19 @@ func NewClient() *Client {
 	}
 }
 
+func getContentLengthFromReader(tmp io.Reader) int64 {
+	if lr, ok := tmp.(LenReader); ok {
+		return int64(lr.Len())
+	}
+	return 0
+}
+
+func closeReader(tmp io.Reader) {
+	if c, ok := tmp.(io.Closer); ok {
+		c.Close()
+	}
+}
+
 func getBodyReaderAndContentLength(rawBody interface{}) (ReaderFunc, int64, error) {
 	var bodyReader ReaderFunc
 	var contentLength int64
@@ -234,12 +247,8 @@ func getBodyReaderAndContentLength(rawBody interface{}) (ReaderFunc, int64, erro
 			if err != nil {
 				return nil, 0, err
 			}
-			if lr, ok := tmp.(LenReader); ok {
-				contentLength = int64(lr.Len())
-			}
-			if c, ok := tmp.(io.Closer); ok {
-				c.Close()
-			}
+			contentLength = getContentLengthFromReader(tmp)
+			closeReader(tmp)
 
 		case func() (io.Reader, error):
 			bodyReader = body
@@ -247,12 +256,8 @@ func getBodyReaderAndContentLength(rawBody interface{}) (ReaderFunc, int64, erro
 			if err != nil {
 				return nil, 0, err
 			}
-			if lr, ok := tmp.(LenReader); ok {
-				contentLength = int64(lr.Len())
-			}
-			if c, ok := tmp.(io.Closer); ok {
-				c.Close()
-			}
+			contentLength = getContentLengthFromReader(tmp)
+			closeReader(tmp)
 
 		// If a regular byte slice, we can read it over and over via new
 		// readers
@@ -292,9 +297,7 @@ func getBodyReaderAndContentLength(rawBody interface{}) (ReaderFunc, int64, erro
 				_, err := raw.Seek(0, 0)
 				return ioutil.NopCloser(raw), err
 			}
-			if lr, ok := raw.(LenReader); ok {
-				contentLength = int64(lr.Len())
-			}
+			contentLength = getContentLengthFromReader(raw)
 
 		// Read all in so we can reset
 		case io.Reader:
