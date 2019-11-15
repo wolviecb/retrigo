@@ -149,8 +149,7 @@ func LinearJitterBackoff(min, max time.Duration, attemptNum int, resp *http.Resp
 	attemptNum++
 
 	if max <= min {
-		// Unclear what to do here, or they are the same, so return min *
-		// attemptNum
+		// Unclear what to do here, or they are the same, so return min * attemptNum
 		return min * time.Duration(attemptNum)
 	}
 
