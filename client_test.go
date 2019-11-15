@@ -20,31 +20,84 @@ func init() {
 	DefaultRetryWaitMin = 1 * time.Microsecond
 }
 
-func checkErr(t *testing.T, err error) {
-	if err != nil {
-		t.Fatalf("err: %v", err)
+func checkErr(t *testing.T, err error, ok bool) {
+	if ok {
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	} else {
+		if err == nil {
+			t.Fatalf("should fail: %v", err)
+		}
 	}
 }
 
 func TestRequest(t *testing.T) {
+	bytesBody := []byte("yo")
+
 	// Fails on invalid request
 	_, err := NewRequest("GET", "://foo", nil)
-	if err == nil {
-		t.Fatalf("should error")
-	}
+	checkErr(t, err, false)
 
 	// Works with no request body
 	_, err = NewRequest("GET", "http://foo", nil)
-	checkErr(t, err)
+	checkErr(t, err, true)
 
 	// Should work with multiple urls space separetad
 	_, err = NewRequest("GET", "http://foo http://bar", nil)
-	checkErr(t, err)
+	checkErr(t, err, true)
 
-	// Works with request body
-	body := bytes.NewReader([]byte("yo"))
-	req, err := NewRequest("GET", "/", body)
-	checkErr(t, err)
+	// Works with ReaderFunc request body
+	funcBody := ReaderFunc(func() (io.Reader, error) {
+		return bytes.NewReader(bytesBody), nil
+	})
+	_, err = NewRequest("POST", "/", funcBody)
+	checkErr(t, err, true)
+
+	// but if ReaderFunc returns error it should fail
+	funcBody = ReaderFunc(func() (io.Reader, error) {
+		return bytes.NewReader(bytesBody), errors.New("A error")
+	})
+	_, err = NewRequest("POST", "/", funcBody)
+	checkErr(t, err, false)
+
+	// Works with native func error it should fail
+	nativeBody := func() (io.Reader, error) {
+		return bytes.NewReader(bytesBody), nil
+	}
+	_, err = NewRequest("POST", "/", nativeBody)
+	checkErr(t, err, true)
+
+	// bit if func returns error
+	nativeBody = func() (io.Reader, error) {
+		return bytes.NewReader(bytesBody), errors.New("A error")
+	}
+	_, err = NewRequest("POST", "/", nativeBody)
+	checkErr(t, err, false)
+
+	// Works with []bytes request body
+	_, err = NewRequest("POST", "/", bytesBody)
+	checkErr(t, err, true)
+
+	//Works with *bytes.Buffer body
+	bufBody := &bytes.Buffer{}
+	_, err = NewRequest("GET", "http://foo", bufBody)
+	checkErr(t, err, true)
+
+	// Works with io.ReadSeeker
+	readSeekerBody := strings.NewReader(string(bytesBody))
+	_, err = NewRequest("GET", "http://foo", readSeekerBody)
+	checkErr(t, err, true)
+
+	// Works with io.Reader
+	readerBody := &custReader{}
+	_, err = NewRequest("GET", "http://foo", readerBody)
+	checkErr(t, err, true)
+
+	// Works with *bytes.Reader request body
+	bytesReaderBody := bytes.NewReader(bytesBody)
+	req, err := NewRequest("GET", "/", bytesReaderBody)
+	checkErr(t, err, true)
 
 	// Request allows typical HTTP request forming methods
 	req.Header.Set("X-Test", "foo")
@@ -68,17 +121,17 @@ func TestFromRequest(t *testing.T) {
 	durl := "http://foo"
 	// Works with no request body
 	httpReq, err := http.NewRequest("GET", durl, nil)
-	checkErr(t, err)
+	checkErr(t, err, true)
 	_, err = FromRequest(httpReq, durl)
-	checkErr(t, err)
+	checkErr(t, err, true)
 
-	// Works with request body
+	// Works with *Reader request body
 	durl = "/"
 	body := bytes.NewReader([]byte("yo"))
 	httpReq, err = http.NewRequest("GET", durl, body)
-	checkErr(t, err)
+	checkErr(t, err, true)
 	req, err := FromRequest(httpReq, durl)
-	checkErr(t, err)
+	checkErr(t, err, true)
 
 	// Preserves headers
 	httpReq.Header.Set("X-Test", "foo")
@@ -139,7 +192,7 @@ func TestClient_Do(t *testing.T) {
 func testClientDo(t *testing.T, body interface{}) {
 	// Create a request
 	req, err := NewRequest("PUT", "http://127.0.0.1:28934/v1/foo http://127.0.0.2:28934/v1/foo http://127.0.0.3:28934/v1/foo", body)
-	checkErr(t, err)
+	checkErr(t, err, true)
 	req.Header.Set("foo", "bar")
 
 	// Track the number of times the logging hook was called
@@ -174,7 +227,7 @@ func testClientDo(t *testing.T, body interface{}) {
 		defer close(doneCh)
 		var err error
 		resp, err = client.Do(req)
-		checkErr(t, err)
+		checkErr(t, err, true)
 	}()
 
 	select {
@@ -204,7 +257,7 @@ func testClientDo(t *testing.T, body interface{}) {
 
 		// Check the payload
 		body, err := ioutil.ReadAll(r.Body)
-		checkErr(t, err)
+		checkErr(t, err, true)
 		expected := []byte("hello")
 		if !bytes.Equal(body, expected) {
 			t.Fatalf("bad: %v", body)
@@ -215,7 +268,7 @@ func testClientDo(t *testing.T, body interface{}) {
 
 	// Create a test server
 	list, err := net.Listen("tcp", ":28934")
-	checkErr(t, err)
+	checkErr(t, err, true)
 	defer list.Close()
 	go http.Serve(list, handler)
 
@@ -265,7 +318,7 @@ func TestClient_Do_fails(t *testing.T) {
 
 	// Create the request
 	req, err := NewRequest("POST", ts.URL, nil)
-	checkErr(t, err)
+	checkErr(t, err, true)
 
 	// Send the request.
 	_, err = client.Do(req)
@@ -286,10 +339,26 @@ func TestClient_Get(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Make the request.
+	// Make the requests.
 	resp, err := NewClient().Get(ts.URL + "/foo/bar")
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
+
+	_, err = NewClient().Get("://foo/bar")
+	checkErr(t, err, false)
+}
+
+func TestClient_GiveUP(t *testing.T) {
+
+	client := NewClient()
+	client.RetryWaitMin = 10 * time.Microsecond
+	client.RetryWaitMax = 10 * time.Microsecond
+	client.RetryMax = 2
+
+	// Should give up and fail if not available
+	_, err := client.Get("https://localhost:12365/foo/bar")
+	checkErr(t, err, false)
+
 }
 
 func TestClient_Get_clientless(t *testing.T) {
@@ -306,7 +375,7 @@ func TestClient_Get_clientless(t *testing.T) {
 
 	// Make the request.
 	resp, err := Get(ts.URL + "/foo/bar")
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -324,7 +393,7 @@ func TestClient_Get_multi(t *testing.T) {
 
 	// Make the request.
 	resp, err := NewClient().Get("https://localhost:65535 " + ts.URL + "/foo/bar")
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -343,8 +412,11 @@ func TestClient_Head(t *testing.T) {
 
 	// Make the request.
 	resp, err := NewClient().Head(ts.URL + "/foo/bar")
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
+	_, err = NewClient().Head("://foo/bar")
+	checkErr(t, err, false)
+
 }
 
 func TestClient_Head_clientless(t *testing.T) {
@@ -362,7 +434,7 @@ func TestClient_Head_clientless(t *testing.T) {
 
 	// Make the request.
 	resp, err := Head(ts.URL + "/foo/bar")
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -381,7 +453,7 @@ func TestClient_Head_multi(t *testing.T) {
 
 	// Make the request.
 	resp, err := NewClient().Head("https://localhost:65535 " + ts.URL + "/foo/bar")
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -417,8 +489,14 @@ func TestClient_Post(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
+
+	_, err = NewClient().Post(
+		"://foo/bar",
+		"application/json",
+		strings.NewReader(`{"hello":"world"}`))
+	checkErr(t, err, false)
 }
 
 func TestClient_Post_clientless(t *testing.T) {
@@ -453,7 +531,7 @@ func TestClient_Post_clientless(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -489,7 +567,7 @@ func TestClient_Post_multi(t *testing.T) {
 		"https://localhost:65535 "+ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -522,12 +600,15 @@ func TestClient_PostForm(t *testing.T) {
 
 	// Create the form data.
 	form, err := url.ParseQuery("hello=world")
-	checkErr(t, err)
+	checkErr(t, err, true)
 
 	// Make the request.
 	resp, err := NewClient().PostForm(ts.URL+"/foo/bar", form)
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
+
+	_, err = NewClient().PostForm("://foo/bar", form)
+	checkErr(t, err, false)
 }
 
 func TestClient_PostForm_clientless(t *testing.T) {
@@ -559,11 +640,11 @@ func TestClient_PostForm_clientless(t *testing.T) {
 
 	// Create the form data.
 	form, err := url.ParseQuery("hello=world")
-	checkErr(t, err)
+	checkErr(t, err, true)
 
 	// Make the request.
 	resp, err := PostForm(ts.URL+"/foo/bar", form)
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -596,11 +677,11 @@ func TestClient_PostForm_multi(t *testing.T) {
 
 	// Create the form data.
 	form, err := url.ParseQuery("hello=world")
-	checkErr(t, err)
+	checkErr(t, err, true)
 
 	// Make the request.
 	resp, err := NewClient().PostForm("https://localhost "+ts.URL+"/foo/bar", form)
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -636,8 +717,14 @@ func TestClient_Put(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
+
+	_, err = NewClient().Put(
+		"://foo/bar",
+		"application/json",
+		strings.NewReader(`{"hello":"world"}`))
+	checkErr(t, err, false)
 }
 
 func TestClient_Put_clientless(t *testing.T) {
@@ -672,7 +759,7 @@ func TestClient_Put_clientless(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -708,7 +795,7 @@ func TestClient_Put_multi(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 func TestClient_Patch(t *testing.T) {
@@ -743,8 +830,14 @@ func TestClient_Patch(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
+
+	_, err = NewClient().Patch(
+		"://foo/bar",
+		"application/json",
+		strings.NewReader(`{"hello":"world"}`))
+	checkErr(t, err, false)
 }
 func TestClient_Patch_clientless(t *testing.T) {
 	// Mock server which always responds 200.
@@ -778,7 +871,7 @@ func TestClient_Patch_clientless(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -814,7 +907,7 @@ func TestClient_Patch_multi(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -850,8 +943,14 @@ func TestClient_Delete(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
+
+	_, err = NewClient().Delete(
+		"://foo/bar",
+		"application/json",
+		strings.NewReader(`{"hello":"world"}`))
+	checkErr(t, err, false)
 }
 
 func TestClient_Delete_clientless(t *testing.T) {
@@ -886,7 +985,7 @@ func TestClient_Delete_clientless(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -922,7 +1021,7 @@ func TestClient_Delete_multi(t *testing.T) {
 		ts.URL+"/foo/bar",
 		"application/json",
 		strings.NewReader(`{"hello":"world"}`))
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 }
 
@@ -934,7 +1033,7 @@ func TestClient_RequestWithContext(t *testing.T) {
 	defer ts.Close()
 
 	req, err := NewRequest(http.MethodGet, ts.URL, nil)
-	checkErr(t, err)
+	checkErr(t, err, true)
 	ctx, cancel := context.WithCancel(req.Request.Context())
 	req = req.WithContext(ctx)
 
@@ -1076,23 +1175,62 @@ func TestJitterBackoff(t *testing.T) {
 		expect time.Duration
 	}
 	cases := []tcase{
+		// if min >= max LinearJitterBackoff should return min * time.Duration(attemptNum)
+		// attemptNum if attempt++ since the counter starts at zero and that would break multiplication
 		{
 			time.Second,
 			time.Second,
 			0,
+			time.Second * time.Duration(1),
+		},
+		{
 			time.Second,
+			time.Second,
+			4,
+			time.Second * time.Duration(5),
+		},
+		{
+			time.Second,
+			time.Second,
+			50,
+			time.Second * time.Duration(51),
 		},
 		{
 			2 * time.Millisecond,
 			time.Millisecond,
 			2,
-			2 * time.Millisecond * time.Duration(3),
+			(2 * time.Millisecond) * time.Duration(3),
+		},
+		{
+			2 * time.Microsecond,
+			time.Microsecond,
+			2,
+			(2 * time.Microsecond) * time.Duration(3),
+		},
+		// else LinearJitterBackoff will return a number between min and max times attemptNum
+		{
+			2 * time.Microsecond,
+			4 * time.Microsecond,
+			2,
+			(4 * time.Microsecond) * time.Duration(3),
 		},
 		{
 			2 * time.Millisecond,
 			4 * time.Millisecond,
 			2,
-			4 * time.Millisecond * time.Duration(3),
+			(4 * time.Millisecond) * time.Duration(3),
+		},
+		{
+			2 * time.Second,
+			4 * time.Second,
+			2,
+			(4 * time.Second) * time.Duration(3),
+		},
+		{
+			time.Millisecond,
+			50 * time.Millisecond,
+			2,
+			(50 * time.Millisecond) * time.Duration(3),
 		},
 	}
 
@@ -1123,7 +1261,7 @@ func TestClient_BackoffCustom(t *testing.T) {
 
 	// Make the request.
 	resp, err := client.Get(ts.URL + "/foo/bar")
-	checkErr(t, err)
+	checkErr(t, err, true)
 	resp.Body.Close()
 	if retries != int32(client.RetryMax) {
 		t.Fatalf("expected retries: %d != %d", client.RetryMax, retries)
