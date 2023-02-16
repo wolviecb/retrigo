@@ -89,7 +89,7 @@ func TestRequest(t *testing.T) {
 	checkErr(t, err, true)
 
 	// Works with io.Reader
-	readerBody := &custReader{}
+	readerBody := &customReader{}
 	_, err = NewRequest("GET", "http://foo", readerBody)
 	checkErr(t, err, true)
 
@@ -146,12 +146,12 @@ func TestFromRequest(t *testing.T) {
 
 // Since normal ways we would generate a Reader have special cases, use a
 // custom type here
-type custReader struct {
+type customReader struct {
 	val string
 	pos int
 }
 
-func (c *custReader) Read(p []byte) (n int, err error) {
+func (c *customReader) Read(p []byte) (n int, err error) {
 	if c.val == "" {
 		c.val = "hello"
 	}
@@ -185,7 +185,7 @@ func TestClient_Do(t *testing.T) {
 	// io.ReadSeeker
 	testClientDo(t, strings.NewReader(string(testBytes)))
 	// io.Reader
-	testClientDo(t, &custReader{})
+	testClientDo(t, &customReader{})
 }
 
 func testClientDo(t *testing.T, body interface{}) {
