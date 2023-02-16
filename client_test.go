@@ -110,7 +110,7 @@ func TestRequest(t *testing.T) {
 	}
 
 	// Should fail on invalid body types
-	req, err = NewRequest("POST", "http://foo", "invalid")
+	_, err = NewRequest("POST", "http://foo", "invalid")
 	if err == nil {
 		t.Fatalf("Should Fail")
 	}
