@@ -1114,13 +1114,13 @@ func TestClient_CheckRetryStop(t *testing.T) {
 }
 
 func TestBackoff(t *testing.T) {
-	type tcase struct {
+	type tt struct {
 		min    time.Duration
 		max    time.Duration
 		i      int
 		expect time.Duration
 	}
-	cases := []tcase{
+	cases := []tt{
 		{
 			time.Second,
 			5 * time.Minute,
@@ -1167,13 +1167,13 @@ func TestBackoff(t *testing.T) {
 }
 
 func TestJitterBackoff(t *testing.T) {
-	type tcase struct {
+	type tt struct {
 		min    time.Duration
 		max    time.Duration
 		i      int
 		expect time.Duration
 	}
-	cases := []tcase{
+	cases := []tt{
 		// if min >= max LinearJitterBackoff should return min * time.Duration(attemptNum)
 		// attemptNum if attempt++ since the counter starts at zero and that would break multiplication
 		{
