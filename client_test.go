@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -256,7 +255,7 @@ func testClientDo(t *testing.T, body interface{}) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		checkErr(t, err, true)
 		expected := []byte("hello")
 		if !bytes.Equal(body, expected) {
@@ -471,7 +470,7 @@ func TestClient_Post(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -513,7 +512,7 @@ func TestClient_Post_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -549,7 +548,7 @@ func TestClient_Post_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -585,7 +584,7 @@ func TestClient_PostForm(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -625,7 +624,7 @@ func TestClient_PostForm_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -662,7 +661,7 @@ func TestClient_PostForm_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -699,7 +698,7 @@ func TestClient_Put(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -741,7 +740,7 @@ func TestClient_Put_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -777,7 +776,7 @@ func TestClient_Put_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -812,7 +811,7 @@ func TestClient_Patch(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -853,7 +852,7 @@ func TestClient_Patch_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -889,7 +888,7 @@ func TestClient_Patch_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -925,7 +924,7 @@ func TestClient_Delete(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -967,7 +966,7 @@ func TestClient_Delete_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1003,7 +1002,7 @@ func TestClient_Delete_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
