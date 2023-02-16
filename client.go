@@ -76,7 +76,7 @@ type Client struct {
 	Backoff       Backoff // Backoff specifies the policy for how long to wait between retries
 	Logger        Logger  // Customer logger instance.
 
-	// Scheduler specifies a the which of the suplied targets should be used next, it's called
+	// Scheduler specifies a the which of the supplied targets should be used next, it's called
 	// before each request. The default Scheduler is DefaultScheduler
 	Scheduler Scheduler
 }

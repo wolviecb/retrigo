@@ -42,7 +42,7 @@ func TestRequest(t *testing.T) {
 	_, err = NewRequest("GET", "http://foo", nil)
 	checkErr(t, err, true)
 
-	// Should work with multiple urls space separetad
+	// Should work with multiple urls space separated
 	_, err = NewRequest("GET", "http://foo http://bar", nil)
 	checkErr(t, err, true)
 
@@ -290,7 +290,7 @@ func testClientDo(t *testing.T, body interface{}) {
 	}
 
 	if resp.StatusCode != 200 {
-		t.Fatalf("exected 200, got: %d", resp.StatusCode)
+		t.Fatalf("expected 200, got: %d", resp.StatusCode)
 	}
 
 	if retryCount < 0 {
@@ -1105,7 +1105,7 @@ func TestClient_CheckRetryStop(t *testing.T) {
 	_, err := client.Get(ts.URL)
 
 	if called != 1 {
-		t.Fatalf("CheckRetry called %d times, expeted 1", called)
+		t.Fatalf("CheckRetry called %d times, expected 1", called)
 	}
 
 	if err != nil {
