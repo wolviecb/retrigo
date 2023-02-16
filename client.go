@@ -27,7 +27,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
@@ -77,7 +76,7 @@ type Client struct {
 	Backoff       Backoff // Backoff specifies the policy for how long to wait between retries
 	Logger        Logger  // Customer logger instance.
 
-	// Scheduler specifies a the which of the suplied targets should be used next, it's called
+	// Scheduler specifies a the which of the supplied targets should be used next, it's called
 	// before each request. The default Scheduler is DefaultScheduler
 	Scheduler Scheduler
 }
@@ -280,7 +279,7 @@ func getBodyReaderAndContentLength(rawBody interface{}) (ReaderFunc, int64, erro
 		// deal with it seeking so want it to match here instead of the
 		// io.ReadSeeker case.
 		case *bytes.Reader:
-			buf, err := ioutil.ReadAll(body)
+			buf, err := io.ReadAll(body)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -294,13 +293,13 @@ func getBodyReaderAndContentLength(rawBody interface{}) (ReaderFunc, int64, erro
 			raw := body
 			bodyReader = func() (io.Reader, error) {
 				_, err := raw.Seek(0, 0)
-				return ioutil.NopCloser(raw), err
+				return io.NopCloser(raw), err
 			}
 			contentLength = getContentLengthFromReader(raw)
 
 		// Read all in so we can reset
 		case io.Reader:
-			buf, err := ioutil.ReadAll(body)
+			buf, err := io.ReadAll(body)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -354,7 +353,7 @@ func NewRequest(method, durl string, rawBody interface{}) (*Request, error) {
 // Try to read the response body so we can reuse this connection.
 func (c *Client) drainBody(body io.ReadCloser) {
 	defer body.Close()
-	_, err := io.Copy(ioutil.Discard, io.LimitReader(body, respReadLimit))
+	_, err := io.Copy(io.Discard, io.LimitReader(body, respReadLimit))
 	if err != nil {
 		mtype := "ERROR"
 		msg := "error reading response body"
@@ -489,7 +488,7 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 			if c, ok := body.(io.ReadCloser); ok {
 				req.Body = c
 			} else {
-				req.Body = ioutil.NopCloser(body)
+				req.Body = io.NopCloser(body)
 			}
 		}
 		dest := ""

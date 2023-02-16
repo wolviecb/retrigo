@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -43,7 +42,7 @@ func TestRequest(t *testing.T) {
 	_, err = NewRequest("GET", "http://foo", nil)
 	checkErr(t, err, true)
 
-	// Should work with multiple urls space separetad
+	// Should work with multiple urls space separated
 	_, err = NewRequest("GET", "http://foo http://bar", nil)
 	checkErr(t, err, true)
 
@@ -90,7 +89,7 @@ func TestRequest(t *testing.T) {
 	checkErr(t, err, true)
 
 	// Works with io.Reader
-	readerBody := &custReader{}
+	readerBody := &customReader{}
 	_, err = NewRequest("GET", "http://foo", readerBody)
 	checkErr(t, err, true)
 
@@ -111,7 +110,7 @@ func TestRequest(t *testing.T) {
 	}
 
 	// Should fail on invalid body types
-	req, err = NewRequest("POST", "http://foo", "invalid")
+	_, err = NewRequest("POST", "http://foo", "invalid")
 	if err == nil {
 		t.Fatalf("Should Fail")
 	}
@@ -147,12 +146,12 @@ func TestFromRequest(t *testing.T) {
 
 // Since normal ways we would generate a Reader have special cases, use a
 // custom type here
-type custReader struct {
+type customReader struct {
 	val string
 	pos int
 }
 
-func (c *custReader) Read(p []byte) (n int, err error) {
+func (c *customReader) Read(p []byte) (n int, err error) {
 	if c.val == "" {
 		c.val = "hello"
 	}
@@ -186,7 +185,7 @@ func TestClient_Do(t *testing.T) {
 	// io.ReadSeeker
 	testClientDo(t, strings.NewReader(string(testBytes)))
 	// io.Reader
-	testClientDo(t, &custReader{})
+	testClientDo(t, &customReader{})
 }
 
 func testClientDo(t *testing.T, body interface{}) {
@@ -256,7 +255,7 @@ func testClientDo(t *testing.T, body interface{}) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		checkErr(t, err, true)
 		expected := []byte("hello")
 		if !bytes.Equal(body, expected) {
@@ -291,7 +290,7 @@ func testClientDo(t *testing.T, body interface{}) {
 	}
 
 	if resp.StatusCode != 200 {
-		t.Fatalf("exected 200, got: %d", resp.StatusCode)
+		t.Fatalf("expected 200, got: %d", resp.StatusCode)
 	}
 
 	if retryCount < 0 {
@@ -471,7 +470,7 @@ func TestClient_Post(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -513,7 +512,7 @@ func TestClient_Post_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -549,7 +548,7 @@ func TestClient_Post_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -585,7 +584,7 @@ func TestClient_PostForm(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -625,7 +624,7 @@ func TestClient_PostForm_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -662,7 +661,7 @@ func TestClient_PostForm_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -699,7 +698,7 @@ func TestClient_Put(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -741,7 +740,7 @@ func TestClient_Put_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -777,7 +776,7 @@ func TestClient_Put_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -812,7 +811,7 @@ func TestClient_Patch(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -853,7 +852,7 @@ func TestClient_Patch_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -889,7 +888,7 @@ func TestClient_Patch_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -925,7 +924,7 @@ func TestClient_Delete(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -967,7 +966,7 @@ func TestClient_Delete_clientless(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1003,7 +1002,7 @@ func TestClient_Delete_multi(t *testing.T) {
 		}
 
 		// Check the payload
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1106,7 +1105,7 @@ func TestClient_CheckRetryStop(t *testing.T) {
 	_, err := client.Get(ts.URL)
 
 	if called != 1 {
-		t.Fatalf("CheckRetry called %d times, expeted 1", called)
+		t.Fatalf("CheckRetry called %d times, expected 1", called)
 	}
 
 	if err != nil {
@@ -1115,13 +1114,13 @@ func TestClient_CheckRetryStop(t *testing.T) {
 }
 
 func TestBackoff(t *testing.T) {
-	type tcase struct {
+	type tt struct {
 		min    time.Duration
 		max    time.Duration
 		i      int
 		expect time.Duration
 	}
-	cases := []tcase{
+	cases := []tt{
 		{
 			time.Second,
 			5 * time.Minute,
@@ -1168,13 +1167,13 @@ func TestBackoff(t *testing.T) {
 }
 
 func TestJitterBackoff(t *testing.T) {
-	type tcase struct {
+	type tt struct {
 		min    time.Duration
 		max    time.Duration
 		i      int
 		expect time.Duration
 	}
-	cases := []tcase{
+	cases := []tt{
 		// if min >= max LinearJitterBackoff should return min * time.Duration(attemptNum)
 		// attemptNum if attempt++ since the counter starts at zero and that would break multiplication
 		{
